@@ -23,7 +23,7 @@ import random
 
 # Bittensor Miner Template:
 import detection
-
+import requests
 # import base miner class which takes care of most of the boilerplate
 from detection.base.miner import BaseMinerNeuron
 from miners.gpt_zero import PPLModel
@@ -67,15 +67,31 @@ class Miner(BaseMinerNeuron):
         start_time = time.time()
 
         input_data = synapse.texts
-        bt.logging.info(f"Texts recieved: {input_data}")
         bt.logging.info(f"Amount of texts recieved: {len(input_data)}")
 
         preds = []
         for text in input_data:
             try:
-                bt.logging.info(f"Texts input Model: {text}")
-                pred_prob = self.model(text) > 0.5
-                bt.logging.info(f"Result pred_prob: {pred_prob}")
+                # API call
+                api_url = 'https://api.gptzero.me/v2/predict/text'
+                headers = {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'x-api-key': 'a75b694f37c14a9d9ed0556985e2a482'
+                }
+                payload = {
+                    "document": text,
+                    "version": "2024-01-09"
+                }
+                response = requests.post(api_url, headers=headers, json=payload)
+                bt.logging.info(f"Call api text: {text}")
+                if response.status_code == 200:
+                    classification = response.json()["documents"][0]["document_classification"]
+                    pred_prob = classification == "AI_ONLY"
+                    bt.logging.info(f"Result pred_prob: {pred_prob}")
+                else:
+                    bt.logging.error(f"API call failed with status code: {response.status_code}")
+                    pred_prob = self.model(text) > 0.5
             except Exception as e:
                 pred_prob = 0
                 bt.logging.error('Couldnt proceed text "{}..."'.format(input_data))
