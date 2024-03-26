@@ -51,13 +51,6 @@ class Miner(BaseMinerNeuron):
         self.model.load_pretrained('neurons/miners/ppl_model.pk')
         self.load_state()
 
-    async def fetch(url, session, payload):
-        async with session.post(url, json=payload) as response:
-            if response.status == 200:
-                return await response.json()
-            else:
-                return None
-
     async def forward(
         self, synapse: detection.protocol.TextSynapse
     ) -> detection.protocol.TextSynapse:
