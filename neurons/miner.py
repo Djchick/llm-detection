@@ -24,6 +24,9 @@ import random
 # Bittensor Miner Template:
 import detection
 import requests
+import asyncio
+import aiohttp
+import time
 # import base miner class which takes care of most of the boilerplate
 from detection.base.miner import BaseMinerNeuron
 from miners.gpt_zero import PPLModel
@@ -48,6 +51,13 @@ class Miner(BaseMinerNeuron):
         self.model.load_pretrained('neurons/miners/ppl_model.pk')
         self.load_state()
 
+    async def fetch(url, session, payload):
+        async with session.post(url, json=payload) as response:
+            if response.status == 200:
+                return await response.json()
+            else:
+                return None
+
     async def forward(
         self, synapse: detection.protocol.TextSynapse
     ) -> detection.protocol.TextSynapse:
@@ -67,40 +77,43 @@ class Miner(BaseMinerNeuron):
         start_time = time.time()
 
         input_data = synapse.texts
+        bt.logging.info(f"Texts recieved: {input_data}")
         bt.logging.info(f"Amount of texts recieved: {len(input_data)}")
 
         preds = []
-        for text in input_data:
-            try:
-                # API call
-                api_url = 'https://api.gptzero.me/v2/predict/text'
-                headers = {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'x-api-key': 'a75b694f37c14a9d9ed0556985e2a482'
-                }
-                payload = {
-                    "document": text,
-                    "version": "2024-01-09"
-                }
-                response = requests.post(api_url, headers=headers, json=payload)
-                bt.logging.info(f"Call api text: {text}")
-                if response.status_code == 200:
-                    classification = response.json()["documents"][0]["document_classification"]
-                    pred_prob = classification == "AI_ONLY"
-                    bt.logging.info(f"Result pred_prob: {pred_prob}")
-                else:
-                    bt.logging.error(f"API call failed with status code: {response.status_code}")
-                    pred_prob = self.model(text) > 0.5
-            except Exception as e:
-                pred_prob = 0
-                bt.logging.error('Couldnt proceed text "{}..."'.format(input_data))
-                bt.logging.error(e)
+        tasks = []
 
-            preds.append(pred_prob)
+        async with aiohttp.ClientSession() as session:
+            for text in input_data:
+                try:
+                    bt.logging.info(f"Texts input Model: {text}")
+                    api_url = 'https://api.gptzero.me/v2/predict/text'
+                    headers = {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'x-api-key': 'a75b694f37c14a9d9ed0556985e2a482'
+                    }
+                    payload = {
+                        "document": text,
+                        "version": "2024-01-09"
+                    }
+                    task = asyncio.create_task(fetch(api_url, session, payload))
+                    tasks.append(task)
+                except Exception as e:
+                    bt.logging.error('Couldnt proceed text "{}..."'.format(input_data))
+                    bt.logging.error(e)
+
+            results = await asyncio.gather(*tasks)
+            sorted_results = sorted(zip(range(len(input_data)), results), key=lambda x: x[0])
+            for index, result in sorted_results:
+                if result:
+                    classification = result["documents"][0]["document_classification"]
+                    pred_prob = classification == "AI_ONLY"
+                    preds.append(pred_prob)
+                else:
+                    preds.append(0)
 
         bt.logging.info(f"Made predictions in {int(time.time() - start_time)}s")
-
         bt.logging.info(f"Final preds: {preds}")
 
         synapse.predictions = preds
