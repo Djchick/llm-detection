@@ -76,8 +76,8 @@ class Miner(BaseMinerNeuron):
         preds = []
         tasks = []
 
-        async def fetch(url, session, payload):
-            async with session.post(url, json=payload) as response:
+        async def fetch(url, session, payload, headers):
+            async with session.post(url, json=payload, headers=headers) as response:
                 if response.status == 200:
                     return await response.json()
                 else:
@@ -97,7 +97,7 @@ class Miner(BaseMinerNeuron):
                         "document": text,
                         "version": "2024-01-09"
                     }
-                    task = asyncio.create_task(fetch(api_url, session, payload))
+                    task = asyncio.create_task(fetch(api_url, session, payload, headers))
                     tasks.append(task)
                 except Exception as e:
                     bt.logging.error('Couldnt proceed text "{}..."'.format(input_data))
@@ -109,6 +109,7 @@ class Miner(BaseMinerNeuron):
                 if result:
                     classification = result["documents"][0]["document_classification"]
                     pred_prob = classification == "AI_ONLY"
+                    bt.logging.info(f"result each preds: {pred_prob}")
                     preds.append(pred_prob)
                 else:
                     preds.append(0)
