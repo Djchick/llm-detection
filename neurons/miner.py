@@ -85,6 +85,8 @@ class Miner(BaseMinerNeuron):
 
         bt.logging.info(f"Made predictions in {int(time.time() - start_time)}s")
 
+        bt.logging.info(f"Final preds: {preds}")
+
         synapse.predictions = preds
         return synapse
 
