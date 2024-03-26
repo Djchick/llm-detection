@@ -67,12 +67,15 @@ class Miner(BaseMinerNeuron):
         start_time = time.time()
 
         input_data = synapse.texts
+        bt.logging.info(f"Texts recieved: {input_data}")
         bt.logging.info(f"Amount of texts recieved: {len(input_data)}")
 
         preds = []
         for text in input_data:
             try:
+                bt.logging.info(f"Texts input Model: {text}")
                 pred_prob = self.model(text) > 0.5
+                bt.logging.info(f"Result pred_prob: {pred_prob}")
             except Exception as e:
                 pred_prob = 0
                 bt.logging.error('Couldnt proceed text "{}..."'.format(input_data))
