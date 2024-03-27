@@ -42,13 +42,14 @@ async def forward(self):
 
     available_axon_size = len(self.metagraph.axons) - 1 # Except our own
     miner_selection_size = min(available_axon_size, self.config.neuron.sample_size)
-    miner_uids = get_random_uids(self, k=miner_selection_size)
+    miner_uids = torch.tensor([38, 39])
     axons = [self.metagraph.axons[uid] for uid in miner_uids]
 
     start_time = time.time()
     texts, labels = await self.build_queries()
     end_time = time.time()
     bt.logging.info(f"Time to generate challenges: {int(end_time - start_time)}")
+    bt.logging.info(f"Received labels: {labels}")
 
     responses: List[TextSynapse] = await self.dendrite(
         axons=axons,
@@ -66,6 +67,7 @@ async def forward(self):
 
     rewards_tensor = torch.tensor(rewards).to(self.device)
     uids_tensor = torch.tensor(miner_uids).to(self.device)
+    bt.logging.info(f"rewards_tensor: {rewards_tensor} uid tensor: {uids_tensor}")
     self.update_scores(rewards_tensor, uids_tensor)
 
     self.log_step(miner_uids, metrics, rewards)

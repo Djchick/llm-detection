@@ -20,13 +20,12 @@ import typing
 import bittensor as bt
 
 import random
+from sapling import SaplingClient
 
 # Bittensor Miner Template:
 import detection
-import requests
-import asyncio
-import aiohttp
-import time
+import concurrent.futures
+
 # import base miner class which takes care of most of the boilerplate
 from detection.base.miner import BaseMinerNeuron
 from miners.gpt_zero import PPLModel
@@ -70,53 +69,42 @@ class Miner(BaseMinerNeuron):
         start_time = time.time()
 
         input_data = synapse.texts
-        bt.logging.info(f"Texts recieved: {input_data}")
         bt.logging.info(f"Amount of texts recieved: {len(input_data)}")
 
         preds = []
-        tasks = []
+    
+        # Define a function to process each text using client.aidetect
+        def process_text(text):
+            try:
+                api_key ='RJ3U0P2LBOFY5HQBMR8ZFH5OV8XYU539'
+                client = SaplingClient(api_key=api_key)
+                detection_scores = client.aidetect(text, sent_scores=True)
+                bt.logging.info(f"Result detection_scores {detection_scores}")
+                pred_prob = detection_scores['score'] > 0.5
+            except Exception as e:
+                pred_prob = 0
+                bt.logging.error('Couldn\'t proceed text "{}..."'.format(text[:20]))  # Truncate long texts
+                bt.logging.error(e)
+                return None  # Return None to indicate failure
+            
+            bt.logging.info(f"Result pred_prob {pred_prob}")
+            return pred_prob
 
-        async def fetch(url, session, payload, headers):
-            async with session.post(url, json=payload, headers=headers) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    return None
-
-        async with aiohttp.ClientSession() as session:
-            for text in input_data:
-                try:
-                    bt.logging.info(f"Texts input Model: {text}")
-                    api_url = 'https://api.gptzero.me/v2/predict/text'
-                    headers = {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'x-api-key': 'a75b694f37c14a9d9ed0556985e2a482'
-                    }
-                    payload = {
-                        "document": text,
-                        "version": "2024-01-09"
-                    }
-                    task = asyncio.create_task(fetch(api_url, session, payload, headers))
-                    tasks.append(task)
-                except Exception as e:
-                    bt.logging.error('Couldnt proceed text "{}..."'.format(input_data))
-                    bt.logging.error(e)
-
-            results = await asyncio.gather(*tasks)
-            sorted_results = sorted(zip(range(len(input_data)), results), key=lambda x: x[0])
-            for index, result in sorted_results:
-                if result:
-                    classification = result["documents"][0]["document_classification"]
-                    pred_prob = classification == "AI_ONLY"
-                    bt.logging.info(f"result each preds: {pred_prob}")
-                    preds.append(pred_prob)
-                else:
-                    preds.append(0)
+        # Use ThreadPoolExecutor to run process_text function concurrently
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Submit each text to be processed concurrently
+            futures = [executor.submit(process_text, text) for text in input_data]
+            
+            # Gather results from futures as they complete
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                if result is not None:
+                    preds.append(result)
+                # Sleep for 1 second between API calls
+                time.sleep(0.3)
 
         bt.logging.info(f"Made predictions in {int(time.time() - start_time)}s")
-        bt.logging.info(f"Final preds: {preds}")
-
+        bt.logging.info(f"Result preds {preds}")
         synapse.predictions = preds
         return synapse
 

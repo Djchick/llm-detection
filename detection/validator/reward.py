@@ -82,6 +82,7 @@ def get_rewards(
                 continue
 
             predictions_array = np.array(predictions_list[uid])
+            bt.logging.info(f"count reward: {predictions_array} labels: {labels}")
             miner_reward, metric = reward(predictions_array, labels)
             penalty = count_penalty(predictions_array)
             miner_reward *= penalty
