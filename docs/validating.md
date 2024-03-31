@@ -21,6 +21,7 @@ git clone https://github.com/It-s-AI/llm-detection
 ```shell
 cd llm-detection
 python3 -m pip install -e .
+python3 -m pip uninstall mathgenerator -y
 python3 -m pip install git+https://github.com/synapse-alpha/mathgenerator.git
 ```
 
@@ -49,7 +50,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 Run ollama service in background
 ```
-nohup ollama serve&
+pm2 start --name ollama "ollama serve"
 ```
 
 Then download models

@@ -69,6 +69,7 @@ class Miner(BaseMinerNeuron):
         start_time = time.time()
 
         input_data = synapse.texts
+        bt.logging.info(f"Texts recieved: {input_data}")
         bt.logging.info(f"Amount of texts recieved: {len(input_data)}")
 
         preds = []
@@ -76,11 +77,9 @@ class Miner(BaseMinerNeuron):
         # Define a function to process each text using client.aidetect
         def process_text(text):
             try:
-                api_key ='RJ3U0P2LBOFY5HQBMR8ZFH5OV8XYU539'
-                client = SaplingClient(api_key=api_key)
-                detection_scores = client.aidetect(text, sent_scores=True)
-                bt.logging.info(f"Result detection_scores {detection_scores}")
-                pred_prob = detection_scores['score'] > 0.5
+                bt.logging.info(f"Texts input Model: {text}")
+                pred_prob = self.model(text) > 0.5
+                bt.logging.info(f"Result pred_prob: {pred_prob}")
             except Exception as e:
                 pred_prob = 0
                 bt.logging.error('Couldn\'t proceed text "{}..."'.format(text[:20]))  # Truncate long texts
