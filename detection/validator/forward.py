@@ -42,7 +42,7 @@ async def forward(self):
 
     available_axon_size = len(self.metagraph.axons) - 1 # Except our own
     miner_selection_size = min(available_axon_size, self.config.neuron.sample_size)
-    miner_uids = torch.tensor([38, 39])
+    miner_uids = torch.tensor([34, 35, 36, 37])
     axons = [self.metagraph.axons[uid] for uid in miner_uids]
 
     start_time = time.time()
